@@ -307,30 +307,15 @@ if __name__ == '__main__':
         mean, std = calc_mean_std() # 会自动打印，由你决定改不改
 
     
-    helper_net_cfg = {
-        'opt':True,
-        'tta':True,
-        'epochs':5,
-        'get_res':True,
-        'get_acc':False, # 模拟比赛提交
-        'del':True,
-        'bagging':True,
-        'bagging2':False,
-        'save':False,
-        'debug':False,
-        'name':'help',
-        'model':'efficientnet-b4',
-        'pre_model':None
-    }
     main_net_cfg = {
         'opt':False,# 不能在opt的时候算准确率，在考虑移除opt中
-        'tta':True,
+        'tta':False,
         'epochs':1,
-        'get_res':True,
-        'get_acc':True, # 模拟比赛提交
-        'del':True,
+        'get_res':False,
+        'get_acc':False, # 模拟比赛提交
+        'del':False,
         'bagging':False,
-        'bagging2':True,
+        'bagging2':False,
         'save':False,
         'debug':False,
         'name':'full',

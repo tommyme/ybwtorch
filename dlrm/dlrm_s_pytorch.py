@@ -54,6 +54,16 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 # miscellaneous
+from torch.optim.lr_scheduler import _LRScheduler
+import sklearn.metrics
+from tricks.md_embedding_bag import PrEmbeddingBag, md_solver
+from tricks.qr_embedding_bag import QREmbeddingBag
+from torch.nn.parallel.scatter_gather import gather, scatter
+from torch.nn.parallel.replicate import replicate
+from torch.nn.parallel.parallel_apply import parallel_apply
+import torch.nn as nn
+import torch
+import onnx
 import builtins
 import functools
 # import bisect
@@ -72,28 +82,19 @@ import numpy as np
 import warnings
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=DeprecationWarning)
-import onnx
 
 # pytorch
-import torch
-import torch.nn as nn
-from torch.nn.parallel.parallel_apply import parallel_apply
-from torch.nn.parallel.replicate import replicate
-from torch.nn.parallel.scatter_gather import gather, scatter
 # quotient-remainder trick
-from tricks.qr_embedding_bag import QREmbeddingBag
 # mixed-dimension trick
-from tricks.md_embedding_bag import PrEmbeddingBag, md_solver
 
-import sklearn.metrics
 
 # from torchviz import make_dot
 # import torch.nn.functional as Functional
 # from torch.nn.parameter import Parameter
 
-from torch.optim.lr_scheduler import _LRScheduler
 
 exc = getattr(builtins, "IOError", "FileNotFoundError")
+
 
 class LRPolicyScheduler(_LRScheduler):
     def __init__(self, optimizer, num_warmup_steps, decay_start_step, num_decay_steps):
@@ -111,13 +112,15 @@ class LRPolicyScheduler(_LRScheduler):
         step_count = self._step_count
         if step_count < self.num_warmup_steps:
             # warmup
-            scale = 1.0 - (self.num_warmup_steps - step_count) / self.num_warmup_steps
+            scale = 1.0 - (self.num_warmup_steps - step_count) / \
+                self.num_warmup_steps
             lr = [base_lr * scale for base_lr in self.base_lrs]
             self.last_lr = lr
         elif self.decay_start_step <= step_count and step_count < self.decay_end_step:
             # decay
             decayed_steps = step_count - self.decay_start_step
-            scale = ((self.num_decay_steps - decayed_steps) / self.num_decay_steps) ** 2
+            scale = ((self.num_decay_steps - decayed_steps) /
+                     self.num_decay_steps) ** 2
             min_lr = 0.0000001
             lr = [max(min_lr, base_lr * scale) for base_lr in self.base_lrs]
             self.last_lr = lr
@@ -132,6 +135,8 @@ class LRPolicyScheduler(_LRScheduler):
         return lr
 
 ### define dlrm in PyTorch ###
+
+
 class DLRM_Net(nn.Module):
     def create_mlp(self, ln, sigmoid_layer):
         # build MLP layer by layer
@@ -180,7 +185,7 @@ class DLRM_Net(nn.Module):
             # construct embedding operator
             if self.qr_flag and n > self.qr_threshold:
                 EE = QREmbeddingBag(n, m, self.qr_collisions,
-                    operation=self.qr_operation, mode="sum", sparse=True)
+                                    operation=self.qr_operation, mode="sum", sparse=True)
             elif self.md_flag:
                 base = max(m)
                 _m = m[i] if n > self.md_threshold else base
@@ -316,8 +321,10 @@ class DLRM_Net(nn.Module):
             # li, lj = torch.tril_indices(ni, nj, offset=offset)
             # approach 2: custom
             offset = 1 if self.arch_interaction_itself else 0
-            li = torch.tensor([i for i in range(ni) for j in range(i + offset)])
-            lj = torch.tensor([j for i in range(nj) for j in range(i + offset)])
+            li = torch.tensor([i for i in range(ni)
+                               for j in range(i + offset)])
+            lj = torch.tensor([j for i in range(nj)
+                               for j in range(i + offset)])
             Zflat = Z[:, li, lj]
             # concatenate dense features and interactions
             R = torch.cat([x] + [Zflat], dim=1)
@@ -360,7 +367,8 @@ class DLRM_Net(nn.Module):
 
         # clamp output if needed
         if 0.0 < self.loss_threshold and self.loss_threshold < 1.0:
-            z = torch.clamp(p, min=self.loss_threshold, max=(1.0 - self.loss_threshold))
+            z = torch.clamp(p, min=self.loss_threshold,
+                            max=(1.0 - self.loss_threshold))
         else:
             z = p
 
@@ -399,7 +407,8 @@ class DLRM_Net(nn.Module):
         dense_x = scatter(dense_x, device_ids, dim=0)
         # distribute sparse features (model parallelism)
         if (len(self.emb_l) != len(lS_o)) or (len(self.emb_l) != len(lS_i)):
-            sys.exit("ERROR: corrupted model input detected in parallel_forward call")
+            sys.exit(
+                "ERROR: corrupted model input detected in parallel_forward call")
 
         t_list = []
         i_list = []
@@ -433,7 +442,8 @@ class DLRM_Net(nn.Module):
         # Therefore, matching the distribution of output of bottom mlp, so that both
         # could be used for subsequent interactions on each device.
         if len(self.emb_l) != len(ly):
-            sys.exit("ERROR: corrupted intermediate result in parallel_forward call")
+            sys.exit(
+                "ERROR: corrupted intermediate result in parallel_forward call")
 
         t_list = []
         for k, _ in enumerate(self.emb_l):
@@ -519,7 +529,8 @@ if __name__ == "__main__":
         "--arch-mlp-top", type=dash_separated_ints, default="4-2-1")
     parser.add_argument(
         "--arch-interaction-op", type=str, choices=['dot', 'cat'], default="dot")
-    parser.add_argument("--arch-interaction-itself", action="store_true", default=False)
+    parser.add_argument("--arch-interaction-itself",
+                        action="store_true", default=False)
     # embedding table options
     parser.add_argument("--md-flag", action="store_true", default=False)
     parser.add_argument("--md-threshold", type=int, default=200)
@@ -531,7 +542,8 @@ if __name__ == "__main__":
     parser.add_argument("--qr-collisions", type=int, default=4)
     # activations and loss
     parser.add_argument("--activation-function", type=str, default="relu")
-    parser.add_argument("--loss-function", type=str, default="mse")  # or bce or wbce
+    parser.add_argument("--loss-function", type=str,
+                        default="mse")  # or bce or wbce
     parser.add_argument(
         "--loss-weights", type=dash_separated_floats, default="1.0-1.0")  # for wbce
     parser.add_argument("--loss-threshold", type=float, default=0.0)  # 1.0e-7
@@ -542,16 +554,22 @@ if __name__ == "__main__":
     parser.add_argument(
         "--data-generation", type=str, default="random"
     )  # synthetic or dataset
-    parser.add_argument("--data-trace-file", type=str, default="./input/dist_emb_j.log")
-    parser.add_argument("--data-set", type=str, default="kaggle")  # or terabyte
+    parser.add_argument("--data-trace-file", type=str,
+                        default="./input/dist_emb_j.log")
+    parser.add_argument("--data-set", type=str,
+                        default="kaggle")  # or terabyte
     parser.add_argument("--raw-data-file", type=str, default="")
     parser.add_argument("--processed-data-file", type=str, default="")
-    parser.add_argument("--data-randomize", type=str, default="total")  # or day or none
-    parser.add_argument("--data-trace-enable-padding", type=bool, default=False)
+    parser.add_argument("--data-randomize", type=str,
+                        default="total")  # or day or none
+    parser.add_argument("--data-trace-enable-padding",
+                        type=bool, default=False)
     parser.add_argument("--max-ind-range", type=int, default=-1)
-    parser.add_argument("--data-sub-sample-rate", type=float, default=0.0)  # in [0, 1]
+    parser.add_argument("--data-sub-sample-rate",
+                        type=float, default=0.0)  # in [0, 1]
     parser.add_argument("--num-indices-per-lookup", type=int, default=10)
-    parser.add_argument("--num-indices-per-lookup-fixed", type=bool, default=False)
+    parser.add_argument("--num-indices-per-lookup-fixed",
+                        type=bool, default=False)
     parser.add_argument("--num-workers", type=int, default=0)
     parser.add_argument("--memory-map", action="store_true", default=False)
     # training
@@ -574,8 +592,10 @@ if __name__ == "__main__":
     parser.add_argument("--test-num-workers", type=int, default=-1)
     parser.add_argument("--print-time", action="store_true", default=False)
     parser.add_argument("--debug-mode", action="store_true", default=False)
-    parser.add_argument("--enable-profiling", action="store_true", default=False)
-    parser.add_argument("--plot-compute-graph", action="store_true", default=False)
+    parser.add_argument("--enable-profiling",
+                        action="store_true", default=False)
+    parser.add_argument("--plot-compute-graph",
+                        action="store_true", default=False)
     # store/load model
     parser.add_argument("--save-model", type=str, default="")
     parser.add_argument("--load-model", type=str, default="")
@@ -585,8 +605,10 @@ if __name__ == "__main__":
     parser.add_argument("--mlperf-acc-threshold", type=float, default=0.0)
     # stop at target AUC Terabyte (no subsampling) 0.8025
     parser.add_argument("--mlperf-auc-threshold", type=float, default=0.0)
-    parser.add_argument("--mlperf-bin-loader", action='store_true', default=False)
-    parser.add_argument("--mlperf-bin-shuffle", action='store_true', default=False)
+    parser.add_argument("--mlperf-bin-loader",
+                        action='store_true', default=False)
+    parser.add_argument("--mlperf-bin-shuffle",
+                        action='store_true', default=False)
     # LR policy
     parser.add_argument("--lr-num-warmup-steps", type=int, default=0)
     parser.add_argument("--lr-decay-start-step", type=int, default=0)
@@ -639,12 +661,6 @@ if __name__ == "__main__":
             )))
         m_den = train_data.m_den
         ln_bot[0] = m_den
-    else:
-        # input and target at random
-        ln_emb = np.fromstring(args.arch_embedding_size, dtype=int, sep="-")
-        m_den = ln_bot[0]
-        train_data, train_ld = dp.make_random_data_and_loader(args, ln_emb, m_den)
-        nbatches = args.num_batches if args.num_batches > 0 else len(train_ld)
 
     ### parse command line arguments ###
     m_spa = args.arch_sparse_feature_size
@@ -753,6 +769,11 @@ if __name__ == "__main__":
         print("data (inputs and targets):")
         for j, (X, lS_o, lS_i, T) in enumerate(train_ld):
             # early exit if nbatches was set by the user and has been exceeded
+            print(X)
+            print(lS_o)
+            print(lS_i)
+            print(T)
+            exit()
             if nbatches > 0 and j >= nbatches:
                 break
 
@@ -816,10 +837,12 @@ if __name__ == "__main__":
     elif args.loss_function == "bce":
         loss_fn = torch.nn.BCELoss(reduction="mean")
     elif args.loss_function == "wbce":
-        loss_ws = torch.tensor(np.fromstring(args.loss_weights, dtype=float, sep="-"))
+        loss_ws = torch.tensor(np.fromstring(
+            args.loss_weights, dtype=float, sep="-"))
         loss_fn = torch.nn.BCELoss(reduction="none")
     else:
-        sys.exit("ERROR: --loss-function=" + args.loss_function + " is not supported")
+        sys.exit("ERROR: --loss-function=" +
+                 args.loss_function + " is not supported")
 
     if not args.inference_only:
         # specify the optimizer algorithm
@@ -857,7 +880,8 @@ if __name__ == "__main__":
                 return loss_fn(Z, T)
         elif args.loss_function == "wbce":
             if use_gpu:
-                loss_ws_ = loss_ws[T.data.view(-1).long()].view_as(T).to(device)
+                loss_ws_ = loss_ws[T.data.view(-1).long()
+                                   ].view_as(T).to(device)
                 loss_fn_ = loss_fn(Z, T.to(device))
             else:
                 loss_ws_ = loss_ws[T.data.view(-1).long()].view_as(T)
@@ -899,7 +923,8 @@ if __name__ == "__main__":
                 )
         else:
             # when targeting inference on CPU
-            ld_model = torch.load(args.load_model, map_location=torch.device('cpu'))
+            ld_model = torch.load(
+                args.load_model, map_location=torch.device('cpu'))
         dlrm.load_state_dict(ld_model["state_dict"])
         ld_j = ld_model["iter"]
         ld_k = ld_model["epoch"]
@@ -970,19 +995,10 @@ if __name__ == "__main__":
                 # early exit if nbatches was set by the user and has been exceeded
                 if nbatches > 0 and j >= nbatches:
                     break
-                '''
-                # debug prints
-                print("input and targets")
-                print(X.detach().cpu().numpy())
-                print([np.diff(S_o.detach().cpu().tolist()
-                       + list(lS_i[i].shape)).tolist() for i, S_o in enumerate(lS_o)])
-                print([S_i.detach().cpu().numpy().tolist() for S_i in lS_i])
-                print(T.detach().cpu().numpy())
-                '''
-
+                print(1,end='')
                 # forward pass
                 Z = dlrm_wrap(X, lS_o, lS_i, use_gpu, device)
-
+                # print(Z)
                 # loss
                 E = loss_fn_wrap(Z, T, use_gpu, device)
                 '''
@@ -995,7 +1011,8 @@ if __name__ == "__main__":
                 L = E.detach().cpu().numpy()  # numpy array
                 S = Z.detach().cpu().numpy()  # numpy array
                 T = T.detach().cpu().numpy()  # numpy array
-                mbs = T.shape[0]  # = args.mini_batch_size except maybe for last
+                # = args.mini_batch_size except maybe for last
+                mbs = T.shape[0]
                 A = np.sum((np.round(S, 0) == T).astype(np.uint8))
 
                 if not args.inference_only:
@@ -1023,7 +1040,8 @@ if __name__ == "__main__":
                 total_iter += 1
                 total_samp += mbs
 
-                should_print = ((j + 1) % args.print_freq == 0) or (j + 1 == nbatches)
+                should_print = ((j + 1) % args.print_freq ==
+                                0) or (j + 1 == nbatches)
                 should_test = (
                     (args.test_freq > 0)
                     and (args.data_generation == "dataset")
@@ -1087,14 +1105,17 @@ if __name__ == "__main__":
                             targets.append(T_test)
                         else:
                             # loss
-                            E_test = loss_fn_wrap(Z_test, T_test, use_gpu, device)
+                            E_test = loss_fn_wrap(
+                                Z_test, T_test, use_gpu, device)
 
                             # compute loss and accuracy
                             L_test = E_test.detach().cpu().numpy()  # numpy array
                             S_test = Z_test.detach().cpu().numpy()  # numpy array
                             T_test = T_test.detach().cpu().numpy()  # numpy array
-                            mbs_test = T_test.shape[0]  # = mini_batch_size except last
-                            A_test = np.sum((np.round(S_test, 0) == T_test).astype(np.uint8))
+                            # = mini_batch_size except last
+                            mbs_test = T_test.shape[0]
+                            A_test = np.sum(
+                                (np.round(S_test, 0) == T_test).astype(np.uint8))
                             test_accu += A_test
                             test_loss += L_test * mbs_test
                             test_samp += mbs_test
@@ -1106,25 +1127,25 @@ if __name__ == "__main__":
                         targets = np.concatenate(targets, axis=0)
 
                         metrics = {
-                            'loss' : sklearn.metrics.log_loss,
-                            'recall' : lambda y_true, y_score:
+                            'loss': sklearn.metrics.log_loss,
+                            'recall': lambda y_true, y_score:
                             sklearn.metrics.recall_score(
                                 y_true=y_true,
                                 y_pred=np.round(y_score)
                             ),
-                            'precision' : lambda y_true, y_score:
+                            'precision': lambda y_true, y_score:
                             sklearn.metrics.precision_score(
                                 y_true=y_true,
                                 y_pred=np.round(y_score)
                             ),
-                            'f1' : lambda y_true, y_score:
+                            'f1': lambda y_true, y_score:
                             sklearn.metrics.f1_score(
                                 y_true=y_true,
                                 y_pred=np.round(y_score)
                             ),
-                            'ap' : sklearn.metrics.average_precision_score,
-                            'roc_auc' : sklearn.metrics.roc_auc_score,
-                            'accuracy' : lambda y_true, y_score:
+                            'ap': sklearn.metrics.average_precision_score,
+                            'roc_auc': sklearn.metrics.roc_auc_score,
+                            'accuracy': lambda y_true, y_score:
                             sklearn.metrics.accuracy_score(
                                 y_true=y_true,
                                 y_pred=np.round(y_score)
@@ -1187,7 +1208,8 @@ if __name__ == "__main__":
                             best_auc_test = validation_results['roc_auc']
 
                         print(
-                            "Testing at - {}/{} of epoch {},".format(j + 1, nbatches, k)
+                            "Testing at - {}/{} of epoch {},".format(
+                                j + 1, nbatches, k)
                             + " loss {:.6f}, recall {:.4f}, precision {:.4f},".format(
                                 validation_results['loss'],
                                 validation_results['recall'],
@@ -1208,7 +1230,8 @@ if __name__ == "__main__":
                         )
                     else:
                         print(
-                            "Testing at - {}/{} of epoch {},".format(j + 1, nbatches, 0)
+                            "Testing at - {}/{} of epoch {},".format(
+                                j + 1, nbatches, 0)
                             + " loss {:.6f}, accuracy {:3.3f} %, best {:3.3f} %".format(
                                 gL_test, gA_test * 100, best_gA_test * 100
                             )
@@ -1219,7 +1242,7 @@ if __name__ == "__main__":
 
                     if (args.mlperf_logging
                         and (args.mlperf_acc_threshold > 0)
-                        and (best_gA_test > args.mlperf_acc_threshold)):
+                            and (best_gA_test > args.mlperf_acc_threshold)):
                         print("MLPerf testing accuracy threshold "
                               + str(args.mlperf_acc_threshold)
                               + " reached, stop training")
@@ -1227,7 +1250,7 @@ if __name__ == "__main__":
 
                     if (args.mlperf_logging
                         and (args.mlperf_auc_threshold > 0)
-                        and (best_auc_test > args.mlperf_auc_threshold)):
+                            and (best_auc_test > args.mlperf_auc_threshold)):
                         print("MLPerf testing auc threshold "
                               + str(args.mlperf_auc_threshold)
                               + " reached, stop training")
@@ -1292,16 +1315,21 @@ if __name__ == "__main__":
                 print("ii.shape", ii.shape)
 
         # name inputs and outputs
-        o_inputs = ["offsets"] if torch.is_tensor(lS_o_onnx) else ["offsets_"+str(i) for i in range(len(lS_o_onnx))]
-        i_inputs = ["indices"] if torch.is_tensor(lS_i_onnx) else ["indices_"+str(i) for i in range(len(lS_i_onnx))]
+        o_inputs = ["offsets"] if torch.is_tensor(
+            lS_o_onnx) else ["offsets_"+str(i) for i in range(len(lS_o_onnx))]
+        i_inputs = ["indices"] if torch.is_tensor(
+            lS_i_onnx) else ["indices_"+str(i) for i in range(len(lS_i_onnx))]
         all_inputs = ["dense_x"] + o_inputs + i_inputs
-        #debug prints
+        # debug prints
         print("inputs", all_inputs)
 
         # create dynamic_axis dictionaries
-        do_inputs = [{'offsets': {1 : 'batch_size' }}] if torch.is_tensor(lS_o_onnx) else [{"offsets_"+str(i) :{0 : 'batch _size'}} for i in range(len(lS_o_onnx))]
-        di_inputs = [{'indices': {1 : 'batch_size' }}] if torch.is_tensor(lS_i_onnx) else [{"indices_"+str(i) :{0 : 'batch _size'}} for i in range(len(lS_i_onnx))]
-        dynamic_axes = {'dense_x' : {0 : 'batch _size'}, 'pred' : {0 : 'batch_size'}}
+        do_inputs = [{'offsets': {1: 'batch_size'}}] if torch.is_tensor(lS_o_onnx) else [
+            {"offsets_"+str(i): {0: 'batch _size'}} for i in range(len(lS_o_onnx))]
+        di_inputs = [{'indices': {1: 'batch_size'}}] if torch.is_tensor(lS_i_onnx) else [
+            {"indices_"+str(i): {0: 'batch _size'}} for i in range(len(lS_i_onnx))]
+        dynamic_axes = {'dense_x': {0: 'batch _size'},
+                        'pred': {0: 'batch_size'}}
         for do in do_inputs:
             dynamic_axes.update(do)
         for di in di_inputs:
