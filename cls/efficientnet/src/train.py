@@ -26,14 +26,14 @@ from torch.utils.model_zoo import load_url
 
 
 def confusion_matrix(a,name=-1,tta=False):
-    # 删除准确率为1的行/列
-    row=0
-    while row < len(a):
-        if a[row,row] == sum(a[row]) and a[row,row] == sum(a[:,row]):
-            a = np.delete(a,row,1)
-            a = np.delete(a,row,0)
-            row -= 1
-        row += 1
+    # 删除准确率为1的行/列(这种做法导致你不知道哪一类有问题)
+    # row=0
+    # while row < len(a):
+        # if a[row,row] == sum(a[row]) and a[row,row] == sum(a[:,row]):
+            # a = np.delete(a,row,1)
+            # a = np.delete(a,row,0)
+            # row -= 1
+        # row += 1
     plt.clf()
     sns.heatmap(a,annot=True,cmap='YlGnBu',annot_kws={'size':10,'weight':'bold'})
     plt.tick_params(labelsize=10)
@@ -315,7 +315,7 @@ if __name__ == '__main__':
     main_net_cfg = {
         'opt':False,# 不能在opt的时候算准确率，在考虑移除opt中
         'tta':False,
-        'epochs':1,
+        'epochs':10,
         'get_res':False,
         'get_acc':False, # 模拟比赛提交
         'del':False,
