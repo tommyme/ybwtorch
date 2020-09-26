@@ -1,21 +1,3 @@
-# Copyright (c) Facebook, Inc. and its affiliates.
-#
-# This source code is licensed under the MIT license found in the
-# LICENSE file in the root directory of this source tree.
-#
-# Description: generate inputs and targets for the dlrm benchmark
-# The inpts and outputs are generated according to the following three option(s)
-# 1) random distribution
-# 2) synthetic distribution, based on unique accesses and distances between them
-#    i) R. Hassan, A. Harris, N. Topham and A. Efthymiou "Synthetic Trace-Driven
-#    Simulation of Cache Memory", IEEE AINAM'07
-# 3) public data set
-#    i)  Criteo Kaggle Display Advertising Challenge Dataset
-#    https://labs.criteo.com/2014/02/kaggle-display-advertising-challenge-dataset
-#    ii) Criteo Terabyte Dataset
-#    https://labs.criteo.com/2013/12/download-terabyte-click-logs
-
-
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 # others
@@ -37,25 +19,12 @@ from torch.utils.data import Dataset, RandomSampler
 import data_loader_terabyte
 
 
-# Kaggle Display Advertising Challenge Dataset
-# dataset (str): name of dataset (Kaggle or Terabyte)
-# randomize (str): determines randomization scheme
-#            "none": no randomization
-#            "day": randomizes each day"s data (only works if split = True)
-#            "total": randomizes total dataset
-# split (bool) : to split into train, test, validation data-sets
 class CriteoDataset(Dataset):
 
     def __init__(
             self,
-            dataset,
-            max_ind_range,
-            sub_sample_rate,
-            randomize,
             split="train",
-            raw_path="",
             pro_data="",
-            memory_map=False
     ):
 
         file = np.load(pro_data)
@@ -103,16 +72,18 @@ class CriteoDataset(Dataset):
 
 def collate_wrapper_criteo(list_of_tuples):
     # where each tuple is (X_int, X_cat, y)
+    # a = [(1,2,3),(4,5,6),(7,8,9)] => list(zip(*a)) [(1, 4, 7), (2, 5, 8), (3, 6, 9)]
     transposed_data = list(zip(*list_of_tuples))
     X_int = torch.log(torch.tensor(transposed_data[0], dtype=torch.float) + 1)
     X_cat = torch.tensor(transposed_data[1], dtype=torch.long)
     T = torch.tensor(transposed_data[2], dtype=torch.float32).view(-1, 1)
 
-    batchSize = X_cat.shape[0]
-    featureCnt = X_cat.shape[1]
+    batchSize = X_cat.shape[0]  # 20
+    featureCnt = X_cat.shape[1]  # 26
 
-    lS_i = [X_cat[:, i] for i in range(featureCnt)]
-    lS_o = [torch.tensor(range(batchSize)) for _ in range(featureCnt)]
+    lS_i = [X_cat[:, i] for i in range(featureCnt)]  # [[f1s_flat],[f2s_flat]]
+    lS_o = [torch.tensor(range(batchSize))
+            for _ in range(featureCnt)]  # [[0,1,2,..,26],[0,..,26]]
 
     return X_int, torch.stack(lS_o), torch.stack(lS_i), T
 
@@ -160,25 +131,13 @@ def ensure_dataset_preprocessed(args, d_path):
 def make_criteo_data_and_loaders(args):
 
     train_data = CriteoDataset(
-        args.data_set,
-        args.max_ind_range,
-        args.data_sub_sample_rate,
-        args.data_randomize,
         "train",
-        args.raw_data_file,
         args.processed_data_file,
-        args.memory_map
     )
 
     test_data = CriteoDataset(
-        args.data_set,
-        args.max_ind_range,
-        args.data_sub_sample_rate,
-        args.data_randomize,
         "test",
-        args.raw_data_file,
         args.processed_data_file,
-        args.memory_map
     )
 
     train_loader = torch.utils.data.DataLoader(

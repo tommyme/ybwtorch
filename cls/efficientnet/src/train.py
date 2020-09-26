@@ -12,7 +12,7 @@ from utils.dataloader import get_debug_loader
 from utils.ranger import Ranger
 from utils.data_pps import get_lists
 from utils.get_net import get_net
-
+import pickle as pkl
 import os
 import seaborn as sns
 import argparse
@@ -264,7 +264,10 @@ def train(net, criterion, optimizer, scheduler, dataloaders_dict, net_cfg):
                 total += labels.size(0)
                 correct += (predicted == labels).cpu().sum()
                 if net_cfg['debug']: # 如果训练效果不佳可以返回每个epoch里面错误的数据
-                    bad_data_one_epoch.append([paths[predicted == labels],labels[predicted == labels]])
+                    res1 = np.array(paths)[predicted.cpu() == labels.cpu()]
+                    res2 = np.array(labels.cpu())[predicted.cpu() == labels.cpu()]
+
+                    bad_data_one_epoch.append([res1,res2])
             
             bad_data.append(bad_data_one_epoch)    
             acc = 100. * float(correct) / float(total)     
@@ -282,7 +285,9 @@ def train(net, criterion, optimizer, scheduler, dataloaders_dict, net_cfg):
               
             
     if net_cfg['debug']:
-        return bad_data # [[path&class],[],[],[]]
+        with open('bad_samples.pkl','wb') as f:
+            pkl.dump(bad_data,f)
+        # return bad_data # [[path&class],[],[],[]]
 
 def tricky_train(net_cfg):
     if net_cfg['bagging']:
@@ -317,7 +322,7 @@ if __name__ == '__main__':
         'bagging':False,
         'bagging2':False,
         'save':False,
-        'debug':False,
+        'debug':True,
         'name':'full',
         'model':'efficientnet-b4',
         'pre_model':None
