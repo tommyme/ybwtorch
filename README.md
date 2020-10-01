@@ -11,6 +11,8 @@
 2. 根据你自己的需求改变config中的超参数
 3. 想实现更多功能的小伙伴可以提出你宝贵的建议
 
+### 更多模型
+- model = torch.hub.load('facebookresearch/WSL-Images', 'resnext101_32x16d_wsl')
 ### tricks
 
 - [x] bagging
@@ -19,7 +21,7 @@
 - [x] mean std
 - [x] label smooth
 - [x] ReduceLROnPlateau
-- [x] cbam模块
+- [x] cbam模块（sigmoid改进来防止破环网络权重）
 - [x] sample weight
 - [x] 辅助分类器
 
