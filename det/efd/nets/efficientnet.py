@@ -25,10 +25,11 @@ class MBConvBlock(nn.Module):
      BlockArgs(kernel_size=5, num_repeat=3, input_filters=80, output_filters=112, expand_ratio=6, id_skip=True, stride=[1], se_ratio=0.25), 
      BlockArgs(kernel_size=5, num_repeat=4, input_filters=112, output_filters=192, expand_ratio=6, id_skip=True, stride=[2], se_ratio=0.25), 
      BlockArgs(kernel_size=3, num_repeat=1, input_filters=192, output_filters=320, expand_ratio=6, id_skip=True, stride=[1], se_ratio=0.25)]
-    
+
     GlobalParams(batch_norm_momentum=0.99, batch_norm_epsilon=0.001, dropout_rate=0.2, num_classes=1000, width_coefficient=1.0, 
                     depth_coefficient=1.0, depth_divisor=8, min_depth=None, drop_connect_rate=0.2, image_size=224)
     '''
+
     def __init__(self, block_args, global_params):
         super().__init__()
         self._block_args = block_args
@@ -40,13 +41,14 @@ class MBConvBlock(nn.Module):
         self.has_se = (self._block_args.se_ratio is not None) and (
             0 < self._block_args.se_ratio <= 1)
         # 是否需要短接边
-        self.id_skip = block_args.id_skip 
+        self.id_skip = block_args.id_skip
 
         Conv2d = get_same_padding_conv2d(image_size=global_params.image_size)
 
         # 1x1卷积通道扩张
         inp = self._block_args.input_filters  # number of input channels
-        oup = self._block_args.input_filters * self._block_args.expand_ratio  # number of output channels
+        oup = self._block_args.input_filters * \
+            self._block_args.expand_ratio  # number of output channels
         if self._block_args.expand_ratio != 1:
             self._expand_conv = Conv2d(
                 in_channels=inp, out_channels=oup, kernel_size=1, bias=False)
@@ -108,6 +110,7 @@ class MBConvBlock(nn.Module):
         """Sets swish function as memory efficient (for training) or standard (for export)"""
         self._swish = MemoryEfficientSwish() if memory_efficient else Swish()
 
+
 class EfficientNet(nn.Module):
     '''
     EfficientNet-b0:
@@ -118,10 +121,11 @@ class EfficientNet(nn.Module):
      BlockArgs(kernel_size=5, num_repeat=3, input_filters=80, output_filters=112, expand_ratio=6, id_skip=True, stride=[1], se_ratio=0.25), 
      BlockArgs(kernel_size=5, num_repeat=4, input_filters=112, output_filters=192, expand_ratio=6, id_skip=True, stride=[2], se_ratio=0.25), 
      BlockArgs(kernel_size=3, num_repeat=1, input_filters=192, output_filters=320, expand_ratio=6, id_skip=True, stride=[1], se_ratio=0.25)]
-    
+
     GlobalParams(batch_norm_momentum=0.99, batch_norm_epsilon=0.001, dropout_rate=0.2, num_classes=1000, width_coefficient=1.0, 
                     depth_coefficient=1.0, depth_divisor=8, min_depth=None, drop_connect_rate=0.2, image_size=224)
     '''
+
     def __init__(self, blocks_args=None, global_params=None):
         super().__init__()
         assert isinstance(blocks_args, list), 'blocks_args should be a list'
@@ -137,7 +141,7 @@ class EfficientNet(nn.Module):
 
         # 网络主干部分开始
         # 设定输入进来的是RGB三通道图像
-        in_channels = 3  
+        in_channels = 3
         # 利用round_filters可以使得通道数在扩张的时候可以被8整除
         out_channels = round_filters(32, self._global_params)
 
@@ -161,20 +165,26 @@ class EfficientNet(nn.Module):
             )
 
             # 第一次大的Block里面的卷积需要考虑步长和输入进来的通道数！
-            self._blocks.append(MBConvBlock(self._blocks_args[i], self._global_params))
+            self._blocks.append(MBConvBlock(
+                self._blocks_args[i], self._global_params))
 
             if self._blocks_args[i].num_repeat > 1:
-                self._blocks_args[i] = self._blocks_args[i]._replace(input_filters=self._blocks_args[i].output_filters, stride=1)
+                self._blocks_args[i] = self._blocks_args[i]._replace(
+                    input_filters=self._blocks_args[i].output_filters, stride=1)
             for _ in range(self._blocks_args[i].num_repeat - 1):
-                self._blocks.append(MBConvBlock(self._blocks_args[i], self._global_params))
+                self._blocks.append(MBConvBlock(
+                    self._blocks_args[i], self._global_params))
 
         # 增加了head部分
-        in_channels = self._blocks_args[len(self._blocks_args)-1].output_filters
+        in_channels = self._blocks_args[len(
+            self._blocks_args)-1].output_filters
         out_channels = round_filters(1280, self._global_params)
 
         # 卷积+标准化
-        self._conv_head = Conv2d(in_channels, out_channels, kernel_size=1, bias=False)
-        self._bn1 = nn.BatchNorm2d(num_features=out_channels, momentum=bn_mom, eps=bn_eps)
+        self._conv_head = Conv2d(
+            in_channels, out_channels, kernel_size=1, bias=False)
+        self._bn1 = nn.BatchNorm2d(
+            num_features=out_channels, momentum=bn_mom, eps=bn_eps)
 
         # 最后的线性全连接层
         self._avg_pooling = nn.AdaptiveAvgPool2d(1)
@@ -223,18 +233,23 @@ class EfficientNet(nn.Module):
     @classmethod
     def from_name(cls, model_name, override_params=None):
         cls._check_model_name_is_valid(model_name)
-        blocks_args, global_params = get_model_params(model_name, override_params)
+        blocks_args, global_params = get_model_params(
+            model_name, override_params)
         return cls(blocks_args, global_params)
 
     @classmethod
     def from_pretrained(cls, model_name, load_weights=True, advprop=True, num_classes=1000, in_channels=3):
-        model = cls.from_name(model_name, override_params={'num_classes': num_classes})
+        model = cls.from_name(model_name, override_params={
+                              'num_classes': num_classes})
         if load_weights:
-            load_pretrained_weights(model, model_name, load_fc=(num_classes == 1000), advprop=advprop)
+            load_pretrained_weights(model, model_name, load_fc=(
+                num_classes == 1000), advprop=advprop)
         if in_channels != 3:
-            Conv2d = get_same_padding_conv2d(image_size = model._global_params.image_size)
+            Conv2d = get_same_padding_conv2d(
+                image_size=model._global_params.image_size)
             out_channels = round_filters(32, model._global_params)
-            model._conv_stem = Conv2d(in_channels, out_channels, kernel_size=3, stride=2, bias=False)
+            model._conv_stem = Conv2d(
+                in_channels, out_channels, kernel_size=3, stride=2, bias=False)
         return model
 
     @classmethod
@@ -248,4 +263,5 @@ class EfficientNet(nn.Module):
         """ Validates model name. """
         valid_models = ['efficientnet-b'+str(i) for i in range(9)]
         if model_name not in valid_models:
-            raise ValueError('model_name should be one of: ' + ', '.join(valid_models))
+            raise ValueError('model_name should be one of: ' +
+                             ', '.join(valid_models))
