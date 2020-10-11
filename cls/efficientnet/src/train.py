@@ -46,7 +46,7 @@ def confusion_matrix(a, name=-1, tta=False):
 
 
 def get_res(net, name, tta=False, opt=False):
-    paths, labels, _ = get_lists(cfg.root, opt=opt)
+    paths, labels, _ = get_lists()
 
     test_path = paths['test']
 
@@ -174,8 +174,7 @@ def baseline(net_cfg, idx=-1, early=False):
     if early:
         return net, criterion, optimizer, scheduler
 
-    dataloaders_dict, cls2id = get_debug_loader(
-        cfg.root, idx, opt=net_cfg['opt'])
+    dataloaders_dict, cls2id = get_debug_loader()
     train(net, criterion, optimizer, scheduler, dataloaders_dict, net_cfg)
     name = idx if net_cfg['bagging'] else net_cfg['name']
     res_file = []

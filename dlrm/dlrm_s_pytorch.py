@@ -519,14 +519,14 @@ if __name__ == "__main__":
         description="Train Deep Learning Recommendation Model (DLRM)"
     )
     # model related parameters
-    parser.add_argument("--arch-sparse-feature-size", type=int, default=2)
+    parser.add_argument("--arch-sparse-feature-size", type=int, default=16)
     parser.add_argument(
         "--arch-embedding-size", type=dash_separated_ints, default="4-3-2")
     # j will be replaced with the table number
     parser.add_argument(
-        "--arch-mlp-bot", type=dash_separated_ints, default="4-3-2")
+        "--arch-mlp-bot", type=dash_separated_ints, default="10-512-256-64-16")
     parser.add_argument(
-        "--arch-mlp-top", type=dash_separated_ints, default="4-2-1")
+        "--arch-mlp-top", type=dash_separated_ints, default="512-256-1")
     parser.add_argument(
         "--arch-interaction-op", type=str, choices=['dot', 'cat'], default="dot")
     parser.add_argument("--arch-interaction-itself",
@@ -543,23 +543,24 @@ if __name__ == "__main__":
     # activations and loss
     parser.add_argument("--activation-function", type=str, default="relu")
     parser.add_argument("--loss-function", type=str,
-                        default="mse")  # or bce or wbce
+                        default="bce")  # or bce or wbce
     parser.add_argument(
         "--loss-weights", type=dash_separated_floats, default="1.0-1.0")  # for wbce
     parser.add_argument("--loss-threshold", type=float, default=0.0)  # 1.0e-7
-    parser.add_argument("--round-targets", type=bool, default=False)
+    parser.add_argument("--round-targets", type=bool, default=True)
     # data
     parser.add_argument("--data-size", type=int, default=1)
     parser.add_argument("--num-batches", type=int, default=0)
     parser.add_argument(
-        "--data-generation", type=str, default="random"
+        "--data-generation", type=str, default="dataset"
     )  # synthetic or dataset
     parser.add_argument("--data-trace-file", type=str,
                         default="./input/dist_emb_j.log")
     parser.add_argument("--data-set", type=str,
                         default="kaggle")  # or terabyte
     parser.add_argument("--raw-data-file", type=str, default="")
-    parser.add_argument("--processed-data-file", type=str, default="")
+    parser.add_argument("--processed-data-file",
+                        type=str, default="./temp.npz")
     parser.add_argument("--data-randomize", type=str,
                         default="total")  # or day or none
     parser.add_argument("--data-trace-enable-padding",
@@ -584,13 +585,13 @@ if __name__ == "__main__":
     # onnx
     parser.add_argument("--save-onnx", action="store_true", default=False)
     # gpu
-    parser.add_argument("--use-gpu", action="store_true", default=False)
+    parser.add_argument("--use-gpu", action="store_true", default=True)
     # debugging and profiling
-    parser.add_argument("--print-freq", type=int, default=1)
-    parser.add_argument("--test-freq", type=int, default=-1)
-    parser.add_argument("--test-mini-batch-size", type=int, default=-1)
-    parser.add_argument("--test-num-workers", type=int, default=-1)
-    parser.add_argument("--print-time", action="store_true", default=False)
+    parser.add_argument("--print-freq", type=int, default=100)
+    parser.add_argument("--test-freq", type=int, default=1000)
+    parser.add_argument("--test-mini-batch-size", type=int, default=2048)
+    parser.add_argument("--test-num-workers", type=int, default=8)
+    parser.add_argument("--print-time", action="store_true", default=True)
     parser.add_argument("--debug-mode", action="store_true", default=False)
     parser.add_argument("--enable-profiling",
                         action="store_true", default=False)
@@ -995,7 +996,7 @@ if __name__ == "__main__":
                 # early exit if nbatches was set by the user and has been exceeded
                 if nbatches > 0 and j >= nbatches:
                     break
-                print(1,end='')
+                print(1, end='')
                 # forward pass
                 Z = dlrm_wrap(X, lS_o, lS_i, use_gpu, device)
                 # print(Z)

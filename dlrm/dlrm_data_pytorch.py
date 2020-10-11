@@ -29,8 +29,8 @@ class CriteoDataset(Dataset):
 
         file = np.load(pro_data)
         # setup data
-        self.m_den = 13
-        self.n_emb = 26
+        self.m_den = 10  # 13
+        self.n_emb = 19  # 26
         self.counts = file['count']
         print("Sparse fea = %d, Dense fea = %d" % (self.n_emb, self.m_den))
 
