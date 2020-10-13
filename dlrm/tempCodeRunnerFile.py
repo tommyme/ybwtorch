@@ -1,1 +1,1 @@
-2019
+str_run_type

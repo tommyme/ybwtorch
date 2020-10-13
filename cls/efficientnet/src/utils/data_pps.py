@@ -28,10 +28,11 @@ def get_lists(**kwargs):  # mydict指定***.txt的地址, idx < 5
     paths = []
     path = {}
     label = {}
-    for id in os.listdir('/content'):
+    root = '/content/resize_img'
+    for id in os.listdir(root):
         if id in ['1','2','3','4','5']:
-            for file in os.listdir(os.path.join('/content',id)):
-                paths.append(os.path.join('/content',id,file))
+            for file in os.listdir(os.path.join(root,id)):
+                paths.append(os.path.join(root,id,file))
                 # labels.append(str(int(id)-1))
     shuffle(paths)
     labels = [int(i.split('/')[-2])-1 for i in paths]
