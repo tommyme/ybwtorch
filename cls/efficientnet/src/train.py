@@ -241,10 +241,14 @@ def train(net, criterion, optimizer, scheduler, dataloaders_dict, net_cfg):
     train_losses = []
     best_acc = 0
     bad_data = []
-
+    net.train()
+    if net_cfg['cbam-only']:
+        for id,param in enumerate(net.parameters()):
+            if not 6 <= id <= 18:
+                param.requires_grad = False
     for epoch in range(net_cfg['epochs']):
 
-        net.train()
+        
         epoch_loss = 0.0
         correct = 0.0
         total = 0.0
@@ -257,7 +261,7 @@ def train(net, criterion, optimizer, scheduler, dataloaders_dict, net_cfg):
             for batch_idx, data in enumerate(dataloaders_dict['train'], 0):
 
                 input, target, paths = data
-                print(paths)
+                # print(paths)
                 input, target = input.to(device), target.to(device)
 
                 # 训练
@@ -270,7 +274,7 @@ def train(net, criterion, optimizer, scheduler, dataloaders_dict, net_cfg):
 
                 # 每训练1个batch打印一次loss和准确率
                 _, predicted = torch.max(output.data, 1)
-                print(predicted.tolist())
+                # print(predicted.tolist())
                 epoch_loss += batch_loss.item()
                 total += target.size(0)
                 correct += predicted.eq(target.data).cpu().sum()
@@ -283,11 +287,12 @@ def train(net, criterion, optimizer, scheduler, dataloaders_dict, net_cfg):
 
         # 每训练完一个epoch测试一下准确率
         with torch.no_grad():
+            net.eval()
             bad_data_one_epoch = []
             correct = 0
             total = 0
             for data in dataloaders_dict['val']:
-                net.eval()
+                
 
                 if net_cfg['debug']:
                     images, labels, paths = data
@@ -360,11 +365,12 @@ if __name__ == '__main__':
         'del': False,
         'bagging': False,
         'bagging2': False,
-        'save': False,
-        'debug': True,
+        'save': True,
+        'debug': False,
         'name': 'full',
-        'model': 'efficientnet-b4',
-        'pre_model': '/content/ybwtorch/cls/efficientnet/src/net_001_99.000.pth',
-        'test':True
+        'model': 'efficientnet-cbam-0-b4',
+        'pre_model': None,
+        'test': False,
+        'cbam-only': False
     }
     tricky_train(main_net_cfg)

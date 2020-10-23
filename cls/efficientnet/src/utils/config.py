@@ -43,7 +43,7 @@ std = np.array([0.16806719,0.18439094,0.18346951])
 
 
 
-batch_size = 20
+batch_size = 16
 num_workers = 4
 label_smooth = True
 lr = 1e-3
@@ -54,7 +54,7 @@ mean_std = False
 confusion_matrix=False
 # 下面的参数一般要改
 input_size = [224,240,260,300,380,456,528,600][version]
-num_classes = 20
+num_classes = 3
 root = '/content/dataset' # 传给data_pps的参数
 model_path = None # 预训练模型的位置 默认为None
 out_dir = './' # 路径后面不能有斜杠   '%s/net_%03d_%.3f.pth' % (config.outdir, epoch + 1,acc))

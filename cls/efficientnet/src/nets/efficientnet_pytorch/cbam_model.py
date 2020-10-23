@@ -150,6 +150,7 @@ class SpatialAttention(nn.Module):
 
         self.conv1 = nn.Conv2d(2, 1, kernel_size, padding=padding, bias=False)
         self.sigmoid = nn.Sigmoid()
+        self.bn = bn2d(1)
 
     def forward(self, x):
         avg_out = torch.mean(x, dim=1, keepdim=True)
@@ -354,6 +355,7 @@ class cbam_EfficientNet(nn.Module):
         x = self._swish(self._bn0(self._conv_stem(inputs)))
         if self.cbam >= 1:
             x = self.ca1(x) * x
+            # print(x.shape())
             x = self.sa1(x) * x
             if self.cbam >= 2:
                 x = self.sge(x)
