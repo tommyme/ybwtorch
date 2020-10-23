@@ -175,10 +175,13 @@ def baseline(net_cfg, idx=-1, early=False):
         return net, criterion, optimizer, scheduler
 
     dataloaders_dict, cls2id = get_debug_loader()
-    train(net, criterion, optimizer, scheduler, dataloaders_dict, net_cfg)
-    name = idx if net_cfg['bagging'] else net_cfg['name']
-    res_file = []
-    res_file.append(get_res(net, name, False, net_cfg['opt']))
+    if net_cfg['test']:
+        test(net,dataloaders_dict)
+    else:
+        train(net, criterion, optimizer, scheduler, dataloaders_dict, net_cfg)
+        name = idx if net_cfg['bagging'] else net_cfg['name']
+        res_file = []
+        res_file.append(get_res(net, name, False, net_cfg['opt']))
     if net_cfg['tta']:
         res_file.append(get_res(net, name, True, net_cfg['opt']))
     if net_cfg['get_acc']:
@@ -214,6 +217,23 @@ def bagging2(net_cfg):
         for file in res_file:
             get_acc(file)
 
+def test(net,dataloaders_dict):
+    with open('res.txt','w') as f:
+        for batch_idx, data in tqdm(enumerate(dataloaders_dict['test'], 0)):
+            net.eval()
+            input, target, paths = data
+            input, target = input.to(device), target.to(device)
+
+            output = net(input)
+
+            _, predicted = torch.max(output.data, 1)
+            labels = [str(i) for i in predicted.tolist()]
+            for i,j in zip(paths,labels):
+                i = i.split('/')[-1]
+                f.write(' '.join([i,j])+'\n')
+
+
+
 
 def train(net, criterion, optimizer, scheduler, dataloaders_dict, net_cfg):
 
@@ -236,7 +256,8 @@ def train(net, criterion, optimizer, scheduler, dataloaders_dict, net_cfg):
 
             for batch_idx, data in enumerate(dataloaders_dict['train'], 0):
 
-                input, target, _ = data
+                input, target, paths = data
+                print(paths)
                 input, target = input.to(device), target.to(device)
 
                 # 训练
@@ -249,6 +270,7 @@ def train(net, criterion, optimizer, scheduler, dataloaders_dict, net_cfg):
 
                 # 每训练1个batch打印一次loss和准确率
                 _, predicted = torch.max(output.data, 1)
+                print(predicted.tolist())
                 epoch_loss += batch_loss.item()
                 total += target.size(0)
                 correct += predicted.eq(target.data).cpu().sum()
@@ -342,6 +364,7 @@ if __name__ == '__main__':
         'debug': True,
         'name': 'full',
         'model': 'efficientnet-b4',
-        'pre_model': None
+        'pre_model': '/content/ybwtorch/cls/efficientnet/src/net_001_99.000.pth',
+        'test':True
     }
     tricky_train(main_net_cfg)

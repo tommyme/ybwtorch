@@ -5,6 +5,8 @@ from random import shuffle
 from glob import glob
 import pandas as pd
 import json
+import random
+
 '''
 file 文件名
 paths 完整路径
@@ -12,8 +14,10 @@ label 数字
 cls 单词
 id 数字
 '''
+random.seed(123)
 
 
+j = os.path.join
 def get_lists(**kwargs):  # mydict指定***.txt的地址, idx < 5
     '''
     rags:
@@ -24,28 +28,31 @@ def get_lists(**kwargs):  # mydict指定***.txt的地址, idx < 5
     1. path 一个字典，分为'train'、'val'，他们分别包含着由绝对路径组成的列表
     2. label ... 由数字标签组成
     3. cls2id {cls_1:0, cls_2:1}
+
     '''
+    root_test = 'test/test_set'
+    pathtest = [j(root_test,i) for i in os.listdir(root_test)]
     paths = []
     path = {}
     label = {}
-    root = '/content/resize_img'
-    for id in os.listdir(root):
-        if id in ['1','2','3','4','5']:
-            for file in os.listdir(os.path.join(root,id)):
-                paths.append(os.path.join(root,id,file))
-                # labels.append(str(int(id)-1))
+    cls2id = {'sunny':0,'cloudy':1,'others':2}
+    root = '/content'
+    for cls in ['sunny','cloudy','others']:
+        diri = j(root,cls)
+        for each in os.listdir(diri):
+            paths.append(j(root,cls,each))
     shuffle(paths)
-    labels = [int(i.split('/')[-2])-1 for i in paths]
+    labels = [cls2id[i.split('/')[-2]] for i in paths]
     split = int(0.8*len(paths))
 
     # if idx == -1:
     path['train'] = paths[:split]
     path['val'] = paths[split:]
-    path['test'] = paths
+    path['test'] = pathtest
 
     label['train'] = labels[:split]
     label['val'] = labels[split:]
-    label['test'] = labels
-    cls2id = ''
+    label['test'] = [0]*len(pathtest)
+
 
     return path, label, cls2id
