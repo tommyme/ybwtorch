@@ -7,7 +7,6 @@ import argparse
 import os
 import matplotlib.pyplot as plt
 import random
-
 def show_imgs(imgs, labels, scores, cols=5):
     '''
     参数全是列表。
@@ -41,7 +40,7 @@ efficientdet = EfficientDet(args.model_path, args.version, args.conf, args.cuda)
 if args.num2show == 1:
     image = Image.open(os.path.join(args.root,args.filename))
     res, cls, score = efficientdet.detect_image(image)
-    print(cls, score)
+    res.save('temp.jpg')
     # r_image.show()
     
 else:
