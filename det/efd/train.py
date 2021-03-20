@@ -46,21 +46,15 @@ def fit_one_epoch(net, focal_loss, epoch, epoch_size, epoch_size_val, gen, genva
     total_c_loss = 0
     total_loss = 0
     val_loss = 0
-    start_time = time.time()
-    with tqdm(total=epoch_size, desc=f'Train Epoch {epoch + 1}/{Epoch}', postfix=dict, mininterval=0.3) as pbar:
+    with tqdm(total=epoch_size, desc=f'Train Epoch {epoch + 1}/{Epoch}') as pbar:
         for iteration, batch in enumerate(gen):
-            if iteration >= epoch_size:
-                break
             images, targets = batch[0], batch[1]
             with torch.no_grad():
-                images = Variable(torch.from_numpy(
-                    images).type(torch.FloatTensor)).cuda()
-                targets = [Variable(torch.from_numpy(ann).type(
-                    torch.FloatTensor)).cuda() for ann in targets]
+                images = torch.from_numpy(images).cuda()
+                targets = [torch.from_numpy(ann).cuda() for ann in targets]
 
             optimizer.zero_grad()
             _, regression, classification, anchors = net(images)
-            print(regression.shape, classification.shape, anchors.shape)
             loss, c_loss, r_loss = focal_loss(
                 classification, regression, anchors, targets, cuda=True)
             loss.backward()
@@ -69,15 +63,12 @@ def fit_one_epoch(net, focal_loss, epoch, epoch_size, epoch_size_val, gen, genva
             total_loss += loss.item()
             total_r_loss += r_loss.item()
             total_c_loss += c_loss.item()
-            waste_time = time.time() - start_time
 
-            pbar.set_postfix(**{'Conf Loss': total_c_loss / (iteration+1),
-                                'Regression Loss': total_r_loss / (iteration+1),
-                                'lr': get_lr(optimizer),
-                                'step/s': waste_time})
+            pbar.set_postfix({'Conf Loss': total_c_loss / (iteration+1),
+                            'Regression Loss': total_r_loss / (iteration+1),
+                            'lr': get_lr(optimizer)})
             pbar.update(1)
 
-            start_time = time.time()
 
     with tqdm(total=epoch_size_val, desc=f'Val Epoch {epoch + 1}/{Epoch}', postfix=dict, mininterval=0.3) as pbar:
         for iteration, batch in enumerate(genval):
