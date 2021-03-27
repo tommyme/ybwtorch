@@ -1,0 +1,84 @@
+{
+    "info": {
+        "description": "COCO 2014 Dataset",
+        "url": "http://cocodataset.org",
+        "version": "1.0",
+        "year": 2014,
+        "contributor": "COCO Consortium",
+        "date_created": "2017/09/01"
+    },
+    "licenses": [
+        {
+            "url": "http://creativecommons.org/licenses/by-nc-sa/2.0/",
+            "id": 1,
+            "name": "Attribution-NonCommercial-ShareAlike License"
+        },
+        {
+            "url": "http://creativecommons.org/licenses/by-nc/2.0/",
+            "id": 2,
+            "name": "Attribution-NonCommercial License"
+        }
+    ],
+    "categories": [
+        {
+            "supercategory": "person",
+            "id": 1,
+            "name": "person"
+        },
+        {
+            "supercategory": "vehicle",
+            "id": 2,
+            "name": "bicycle"
+        },
+        {
+            "supercategory": "vehicle",
+            "id": 3,
+            "name": "car"
+        }
+    ],
+    "images": [
+        {
+            "license": 1,
+            "file_name": "COCO_val2014_000000581062.jpg",
+            "coco_url": "http://images.cocodataset.org/val2014/COCO_val2014_000000581062.jpg",
+            "height": 375,
+            "width": 500,
+            "date_captured": "2013-11-20 09:12:04",
+            "flickr_url": "http://farm4.staticflickr.com/3582/3328164554_6765a03a6a_z.jpg",
+            "id": 581062
+        },
+        {
+            "license": 5,
+            "file_name": "COCO_val2014_000000581317.jpg",
+            "coco_url": "http://images.cocodataset.org/val2014/COCO_val2014_000000581317.jpg",
+            "height": 354,
+            "width": 640,
+            "date_captured": "2013-11-24 07:57:55",
+            "flickr_url": "http://farm1.staticflickr.com/14/19721466_b561e5955f_z.jpg",
+            "id": 581317
+        }
+    ],
+    "annotations": [
+        {
+            "segmentation": [
+                [
+                    140.87,
+                    164.77,
+                    133.33,
+                    162.39
+                ]
+            ],
+            "area": 2470.656449999998,
+            "iscrowd": 0,
+            "image_id": 581062,
+            "bbox": [
+                131.74,
+                51.28,
+                62.7,
+                113.49
+            ],
+            "category_id": 1,
+            "id": 469201
+        }
+    ]
+}
